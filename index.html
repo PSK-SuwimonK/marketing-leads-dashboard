@@ -76,6 +76,7 @@ table.chan td.nw{white-space:nowrap;word-break:normal;max-width:none}table.chan 
 @media(max-width:700px){main{padding:12px}.filters,header,nav{padding-left:12px;padding-right:12px}.g2{grid-template-columns:1fr}}
 @media(max-width:1000px){.filters{position:static}}
 @media print{.filters,nav,.actions{display:none}}
+.narr{margin-bottom:14px;border-left:5px solid var(--green)}.narr .nh{font-size:13px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.04em}.narr .nl{font-size:17px;font-weight:600;margin:6px 0 10px;line-height:1.4}.narr .ns{display:grid;grid-template-columns:150px 1fr;gap:10px;padding:8px 0;border-top:1px solid #E3E8E1}.narr .nt{font-weight:700;color:var(--navy)}.narr ul{margin:0;padding-left:18px}@media(max-width:700px){.narr .ns{grid-template-columns:1fr;gap:2px}}
 </style>
 </head>
 <body>
@@ -112,6 +113,7 @@ table.chan td.nw{white-space:nowrap;word-break:normal;max-width:none}table.chan 
       <label class="pl">View<select id="p_mode"><option value="week">Weekly (Mon–Sun)</option><option value="month">Monthly</option></select></label>
       <label class="pl">Period<select id="p_key"></select></label>
       <span class="mini" id="p_note"></span></div>
+    <div class="card narr" id="pNarr"></div>
     <div class="grid kpis" id="pKpi"></div>
     <div class="grid g2" style="margin-top:14px"><div class="card"><h3>Summary for the selected period</h3><ul class="ins" id="pSum"></ul></div><div class="card"><h3>Leads per period (latest 12)</h3><div class="chart"><canvas id="chPeriod"></canvas></div></div></div>
     <div class="card" style="margin-top:14px"><h3>Leads received in this period</h3><div id="pTable"></div></div>
@@ -693,6 +695,24 @@ function renderPeriod(){
   $('pKpi').innerHTML=defs.map(([n,c,f])=>{const a=f(cur),b=f(prv),sh=x=>n.startsWith('Est.')?fmtKw(x):fmt(x);
     return`<div class="card kpi ${c}"><div class="l">${n}</div><div class="v">${sh(a)}</div><div class="d">${delta(a,b)} vs previous ${P.mode==='week'?'week':'month'} (${sh(b)})</div></div>`}).join('');
   $('p_note').textContent=`Compared with ${pp}. Status = current status of the leads received in the period.`;
+  /* plain-language narrative */
+  {const per=P.mode==='week'?'week':'month',nar=[];
+   if(!cur.length){$('pNarr').innerHTML=`<div class="nh">${esc(pl)}</div><p>No leads were recorded in this period.</p>`}
+   else{
+    const q=cnt(cur,l=>l.qual==='Qualified'),u=cnt(cur,l=>l.qual==='Unqualified'),pe=cnt(cur,l=>l.qual==='Pending');
+    const chg=prv.length?(cur.length>prv.length?'up ':cur.length<prv.length?'down ':'unchanged ')+(cur.length===prv.length?'':Math.abs(Math.round((cur.length-prv.length)/prv.length*100))+'% ')+'from the previous '+per+' ('+prv.length+')':'no data for the previous '+per;
+    let head=`${cur.length} new lead${cur.length>1?'s':''}, ${chg}. `;
+    head+=q?`${q} qualified`:'None is qualified yet';head+=`, ${pe} waiting for evaluation, ${u} not qualified.`;
+    const one=l=>{const bits=[l.channel,l.province,l.capKw?fmtKw(l.capKw):'',l.billMin?'bill '+fmt(l.billMin)+' THB/mo':'',l.solution&&l.solution!=='Not specified'?l.solution:''].filter(Boolean);return`<b>${esc(l.name.slice(0,48))}</b> <span class="mini">(${esc(bits.join(' · '))}) – ${l.qual}</span>`};
+    const ch=sortedCounts(count(cur,l=>l.channel||'Not recorded'),9).map(x=>x[0]+' '+x[1]).join(', ');
+    const watch=cur.filter(l=>l.qual!=='Unqualified').sort((a,b)=>((b.capKw||0)*1000+(b.billMin||0))-((a.capKw||0)*1000+(a.billMin||0))).slice(0,3);
+    const unq=cur.filter(l=>l.qual==='Unqualified');
+    const sections=[['Where they came from',esc(ch)+'.'],
+      watch.length?['Leads to watch','<ul>'+watch.map(l=>'<li>'+one(l)+'</li>').join('')+'</ul>']:null,
+      unq.length?['Not qualified','<ul>'+unq.map(l=>`<li><b>${esc(l.name.slice(0,48))}</b> – ${esc(l.disq||'see remark')}</li>`).join('')+'</ul>']:null,
+      ['What to do next',[pe?`Evaluate the ${pe} pending lead${pe>1?'s':''}${watch[0]?', starting with '+esc(watch[0].name.slice(0,40)):''}.`:'',cur.filter(l=>l.qual==='Qualified'&&!l.transferred).length?'Hand qualified leads to Sales and record the owner and date.':'',base.filter(l=>l.attention&&l.date&&pKey(l)<P.key).length?base.filter(l=>l.attention&&l.date&&pKey(l)<P.key).length+' older open leads are past the '+cfg().agingDays+'-day limit.':''].filter(Boolean).join(' ')||'No action needed.']].filter(Boolean);
+    $('pNarr').innerHTML=`<div class="nh">${esc(pl)}</div><p class="nl">${esc(head)}</p>`+sections.map(([h,b])=>`<div class="ns"><div class="nt">${h}</div><div>${b}</div></div>`).join('')+'<p class="mini" style="margin-top:8px">Counts are by date received, using each lead’s current status. Auto-written from the data and the dropdown selection above.</p>';
+   }}
   /* summary text */
   const out=[],add=(t,x)=>out.push([t,x]);
   if(!cur.length)add('Attention',`No leads are recorded for ${pl}. If leads were received, check that the Marketing file for this period has been uploaded.`);
