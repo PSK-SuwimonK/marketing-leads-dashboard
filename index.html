@@ -76,7 +76,7 @@ table.chan td.nw{white-space:nowrap;word-break:normal;max-width:none}table.chan 
 @media(max-width:700px){main{padding:12px}.filters,header,nav{padding-left:12px;padding-right:12px}.g2{grid-template-columns:1fr}}
 @media(max-width:1000px){.filters{position:static}}
 @media print{.filters,nav,.actions{display:none}}
-.narr{margin-bottom:14px;border-left:5px solid var(--green)}.narr .nh{font-size:13px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.04em}.narr .nl{font-size:17px;font-weight:600;margin:6px 0 10px;line-height:1.4}.narr .ns{display:grid;grid-template-columns:150px 1fr;gap:10px;padding:8px 0;border-top:1px solid #E3E8E1}.narr .nt{font-weight:700;color:var(--navy)}.narr ul{margin:0;padding-left:18px}@media(max-width:700px){.narr .ns{grid-template-columns:1fr;gap:2px}}
+.narr{margin-bottom:14px;border-left:5px solid var(--green);padding:18px 20px}.narr .nh{font-size:12.5px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.05em}.narr .nl{font-size:18px;line-height:1.45;margin:6px 0 14px}.narr .nt{font-size:12px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px}.ngrid{display:grid;grid-template-columns:minmax(260px,5fr) 7fr;gap:26px;align-items:start}.ntab{width:100%;border-collapse:collapse}.ntab th{font-size:11.5px;color:var(--grey);text-align:left;font-weight:600;padding:4px 6px;border-bottom:2px solid #E3E8E1}.ntab td{padding:7px 6px;border-bottom:1px solid #E3E8E1}.ntab .num{text-align:right}.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px}.ncap{background:#F1F6F2;border-radius:8px;padding:9px 12px;margin:10px 0 0;font-size:13.5px}.chips{display:flex;flex-wrap:wrap;gap:6px}.chip{background:#E8F1EB;color:var(--navy);border-radius:14px;padding:3px 11px;font-size:13px}.nlist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:9px}.ni{display:flex;gap:11px;padding:9px 11px;border:1px solid #E3E8E1;border-radius:8px;background:#FBFCFB}.nn{flex:none;width:24px;height:24px;border-radius:50%;background:var(--navy);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center}.nnote{font-size:12.5px;color:#4A5A50;margin-top:3px}.nnext{margin-top:16px;padding:11px 14px;background:#FFF6EA;border-left:4px solid var(--orange);border-radius:6px;font-size:14px}.nnext .nt{display:inline;margin-right:6px;color:#B86A12}@media(max-width:900px){.ngrid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -115,7 +115,7 @@ table.chan td.nw{white-space:nowrap;word-break:normal;max-width:none}table.chan 
       <span class="mini" id="p_note"></span></div>
     <div class="card narr" id="pNarr"></div>
     <div class="grid kpis" id="pKpi"></div>
-    <div class="grid g2" style="margin-top:14px"><div class="card"><h3>Summary for the selected period</h3><ul class="ins" id="pSum"></ul></div><div class="card"><h3>Leads per period (latest 12)</h3><div class="chart"><canvas id="chPeriod"></canvas></div></div></div>
+    <div class="grid g2" style="margin-top:14px"><div class="card" style="display:none"><ul class="ins" id="pSum"></ul></div><div class="card" style="grid-column:1/-1"><h3>Leads per period (latest 12)</h3><div class="chart"><canvas id="chPeriod"></canvas></div></div></div>
     <div class="card" style="margin-top:14px"><h3>Leads received in this period</h3><div id="pTable"></div></div>
   </section>
   <section id="insights"><h2>Management Insights &amp; Recommendations <span class="tag">auto-generated from uploaded data</span></h2><div class="card"><ul class="ins" id="insList"></ul></div></section>
@@ -695,23 +695,34 @@ function renderPeriod(){
   $('pKpi').innerHTML=defs.map(([n,c,f])=>{const a=f(cur),b=f(prv),sh=x=>n.startsWith('Est.')?fmtKw(x):fmt(x);
     return`<div class="card kpi ${c}"><div class="l">${n}</div><div class="v">${sh(a)}</div><div class="d">${delta(a,b)} vs previous ${P.mode==='week'?'week':'month'} (${sh(b)})</div></div>`}).join('');
   $('p_note').textContent=`Compared with ${pp}. Status = current status of the leads received in the period.`;
-  /* plain-language narrative */
-  {const per=P.mode==='week'?'week':'month',nar=[];
-   if(!cur.length){$('pNarr').innerHTML=`<div class="nh">${esc(pl)}</div><p>No leads were recorded in this period.</p>`}
+  /* overview summary */
+  {const per=P.mode==='week'?'week':'month',N=$('pNarr');
+   if(!cur.length){N.innerHTML=`<div class="nh">Overview Summary · ${esc(pl)}</div><p class="nl">No leads were recorded in this period.</p>`}
    else{
-    const q=cnt(cur,l=>l.qual==='Qualified'),u=cnt(cur,l=>l.qual==='Unqualified'),pe=cnt(cur,l=>l.qual==='Pending');
-    const chg=prv.length?(cur.length>prv.length?'up ':cur.length<prv.length?'down ':'unchanged ')+(cur.length===prv.length?'':Math.abs(Math.round((cur.length-prv.length)/prv.length*100))+'% ')+'from the previous '+per+' ('+prv.length+')':'no data for the previous '+per;
-    let head=`${cur.length} new lead${cur.length>1?'s':''}, ${chg}. `;
-    head+=q?`${q} qualified`:'None is qualified yet';head+=`, ${pe} waiting for evaluation, ${u} not qualified.`;
-    const one=l=>{const bits=[l.channel,l.province,l.capKw?fmtKw(l.capKw):'',l.billMin?'bill '+fmt(l.billMin)+' THB/mo':'',l.solution&&l.solution!=='Not specified'?l.solution:''].filter(Boolean);return`<b>${esc(l.name.slice(0,48))}</b> <span class="mini">(${esc(bits.join(' · '))}) – ${l.qual}</span>`};
-    const ch=sortedCounts(count(cur,l=>l.channel||'Not recorded'),9).map(x=>x[0]+' '+x[1]).join(', ');
-    const watch=cur.filter(l=>l.qual!=='Unqualified').sort((a,b)=>((b.capKw||0)*1000+(b.billMin||0))-((a.capKw||0)*1000+(a.billMin||0))).slice(0,3);
-    const unq=cur.filter(l=>l.qual==='Unqualified');
-    const sections=[['Where they came from',esc(ch)+'.'],
-      watch.length?['Leads to watch','<ul>'+watch.map(l=>'<li>'+one(l)+'</li>').join('')+'</ul>']:null,
-      unq.length?['Not qualified','<ul>'+unq.map(l=>`<li><b>${esc(l.name.slice(0,48))}</b> – ${esc(l.disq||'see remark')}</li>`).join('')+'</ul>']:null,
-      ['What to do next',[pe?`Evaluate the ${pe} pending lead${pe>1?'s':''}${watch[0]?', starting with '+esc(watch[0].name.slice(0,40)):''}.`:'',cur.filter(l=>l.qual==='Qualified'&&!l.transferred).length?'Hand qualified leads to Sales and record the owner and date.':'',base.filter(l=>l.attention&&l.date&&pKey(l)<P.key).length?base.filter(l=>l.attention&&l.date&&pKey(l)<P.key).length+' older open leads are past the '+cfg().agingDays+'-day limit.':''].filter(Boolean).join(' ')||'No action needed.']].filter(Boolean);
-    $('pNarr').innerHTML=`<div class="nh">${esc(pl)}</div><p class="nl">${esc(head)}</p>`+sections.map(([h,b])=>`<div class="ns"><div class="nt">${h}</div><div>${b}</div></div>`).join('')+'<p class="mini" style="margin-top:8px">Counts are by date received, using each lead’s current status. Auto-written from the data and the dropdown selection above.</p>';
+    const c=(s,q)=>cnt(s,l=>l.qual===q),q=c(cur,'Qualified'),u=c(cur,'Unqualified'),pe=c(cur,'Pending'),tr=cnt(cur,l=>l.transferred);
+    const chg=prv.length?(cur.length===prv.length?'unchanged vs':(cur.length>prv.length?'up ':'down ')+Math.abs(Math.round((cur.length-prv.length)/prv.length*100))+'% vs')+' the previous '+per+' ('+prv.length+')':'no data for the previous '+per;
+    const head=`<b>${cur.length}</b> new lead${cur.length>1?'s':''} received, ${chg}. `+(q?`<b>${q}</b> qualified`:'None is qualified yet')+`, <b>${pe}</b> waiting for evaluation, <b>${u}</b> not qualified.`;
+    const row=(lab,col,a,b)=>`<tr><td><span class="dot" style="background:${col}"></span>${lab}</td><td class="num"><b>${a}</b></td><td class="num mini">${b} → ${a}</td></tr>`;
+    const tbl=`<table class="ntab"><tr><th>Status</th><th class="num">Leads</th><th class="num">vs previous ${per}</th></tr>`+row('Qualified',C.green,q,c(prv,'Qualified'))+row('Unqualified',C.red,u,c(prv,'Unqualified'))+row('Pending evaluation',C.orange,pe,c(prv,'Pending'))+row('Transferred to Sales',C.navy,tr,cnt(prv,l=>l.transferred))+'</table>';
+    const capN=cap(cur),capP=cap(prv);
+    const capTxt=capN?`Estimated capacity from notes: <b>${fmtKw(capN)}</b> (previous ${per}: ${fmtKw(capP)})`+(()=>{const big=cur.filter(l=>l.capKw).sort((a,b)=>b.capKw-a.capKw)[0];return big&&big.capKw>=capN*0.6&&cur.filter(l=>l.capKw).length>1?`, mostly from <b>${esc(big.name.slice(0,30))}</b>`:''})()+'.':'No capacity stated in the notes for this period.';
+    const chs=sortedCounts(count(cur,l=>l.channel||'Not recorded'),9);
+    const chips=chs.map(x=>`<span class="chip">${esc(x[0])} <b>${x[1]}</b></span>`).join('');
+    const sorted=cur.slice().sort((a,b)=>a.date<b.date?-1:1);
+    const items=sorted.map((l,i)=>{
+      const bits=[l.channel,l.province,l.capKw?fmtKw(l.capKw):'',l.billRaw?'bill '+l.billRaw+' THB/mo':'',l.solution&&l.solution!=='Not specified'?l.solution:''].filter(Boolean);
+      const note=l.qual==='Unqualified'&&l.disq?l.disq:(l.remark||'');
+      return`<li class="ni"><span class="nn">${i+1}</span><div><div><b>${esc(l.name.slice(0,60))}</b> ${qualPill(l.qual)}</div><div class="mini">${l.date.slice(8)+' '+MON[+l.date.slice(5,7)-1]} · ${esc(bits.join(' · '))}</div>${note?`<div class="nnote">${esc(note.replace(/\s+/g,' ').slice(0,110))}</div>`:''}</div></li>`}).join('');
+    const nxt=[];
+    const top=cur.filter(l=>l.qual==='Pending').sort((a,b)=>((b.capKw||0)*1000+(b.billMin||0))-((a.capKw||0)*1000+(a.billMin||0)))[0];
+    if(pe)nxt.push(`Evaluate the ${pe} pending lead${pe>1?'s':''}`+(top?`, starting with <b>${esc(top.name.slice(0,36))}</b>`:'')+'.');
+    const qn=cnt(cur,l=>l.qual==='Qualified'&&!l.transferred);if(qn)nxt.push(`Hand over ${qn} qualified lead${qn>1?'s':''} to Sales and record the owner and date.`);
+    const old=cnt(base,l=>l.attention&&l.date&&pKey(l)<P.key);if(old)nxt.push(`${old} older open lead${old>1?'s are':' is'} past the ${cfg().agingDays}-day limit (see section E).`);
+    N.innerHTML=`<div class="nh">Overview Summary · ${esc(pl)}</div><p class="nl">${head}</p>
+     <div class="ngrid"><div><div class="nt">Status</div>${tbl}<p class="ncap">${capTxt}</p><div class="nt" style="margin-top:12px">Channels</div><div class="chips">${chips}</div></div>
+     <div><div class="nt">Leads received (${cur.length})</div><ol class="nlist">${items}</ol></div></div>
+     <div class="nnext"><span class="nt">What to do next</span> ${nxt.join(' ')||'No action needed.'}</div>
+     <p class="mini" style="margin-top:8px">Counts are by date received, using each lead’s current status. Auto-written from the data and the dropdown selection above.</p>`;
    }}
   /* summary text */
   const out=[],add=(t,x)=>out.push([t,x]);
